@@ -84,3 +84,60 @@ resource "azurerm_subnet" "ai_services" {
   virtual_network_name = azurerm_virtual_network.spoke_ai.name
   address_prefixes     = [var.ai_services_subnet_cidr]
 }
+
+# ═══════════════════════════════════════════
+# VNET PEERINGS
+# Hub-Spoke requires BOTH directions
+# Non-transitive by Azure design
+# Spoke-to-Spoke traffic via Firewall
+# ═══════════════════════════════════════════
+
+# Hub → AVD Spoke
+resource "azurerm_virtual_network_peering" "hub_to_avd" {
+  name                      = "peer-hub-to-avd"
+  resource_group_name       = azurerm_resource_group.hub.name
+  virtual_network_name      = azurerm_virtual_network.hub.name
+  remote_virtual_network_id = azurerm_virtual_network.spoke_avd.id
+  allow_forwarded_traffic   = true
+  allow_gateway_transit     = false
+  use_remote_gateways       = false
+}
+
+# AVD Spoke → Hub
+resource "azurerm_virtual_network_peering" "avd_to_hub" {
+  name                      = "peer-avd-to-hub"
+  resource_group_name       = azurerm_resource_group.spoke_avd.name
+  virtual_network_name      = azurerm_virtual_network.spoke_avd.name
+  remote_virtual_network_id = azurerm_virtual_network.hub.id
+  allow_forwarded_traffic   = true
+  allow_gateway_transit     = false
+  use_remote_gateways       = false
+}
+
+# Hub → AI Spoke
+resource "azurerm_virtual_network_peering" "hub_to_ai" {
+  name                      = "peer-hub-to-ai"
+  resource_group_name       = azurerm_resource_group.hub.name
+  virtual_network_name      = azurerm_virtual_network.hub.name
+  remote_virtual_network_id = azurerm_virtual_network.spoke_ai.id
+  allow_forwarded_traffic   = true
+  allow_gateway_transit     = false
+  use_remote_gateways       = false
+}
+
+# AI Spoke → Hub
+resource "azurerm_virtual_network_peering" "ai_to_hub" {
+  name                      = "peer-ai-to-hub"
+  resource_group_name       = azurerm_resource_group.spoke_ai.name
+  virtual_network_name      = azurerm_virtual_network.spoke_ai.name
+  remote_virtual_network_id = azurerm_virtual_network.hub.id
+  allow_forwarded_traffic   = true
+  allow_gateway_transit     = false
+  use_remote_gateways       = false
+}
+
+
+# ═══════════════════════════════════════════
+# VNET PEERINGS
+# Hub-Spoke requires BOTH directions
+# Non-transitive by Azure design

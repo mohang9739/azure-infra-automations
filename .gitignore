@@ -6,3 +6,4 @@
 .terraform.lock.hcl
 *.pdf
 .env
+.DS_Store

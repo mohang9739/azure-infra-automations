@@ -184,3 +184,53 @@ resource "azurerm_firewall" "hub" {
     public_ip_address_id = azurerm_public_ip.firewall.id
   }
 }
+
+# ═══════════════════════════════════════════
+# UDR ROUTE TABLES
+# Forces ALL spoke traffic through Firewall
+# 0.0.0.0/0 → VirtualAppliance → Firewall IP
+# ═══════════════════════════════════════════
+
+# AVD Spoke Route Table
+resource "azurerm_route_table" "avd" {
+  name                          = "rt-spoke-avd-${local.environment}"
+  location                      = var.location
+  resource_group_name           = azurerm_resource_group.spoke_avd.name
+  bgp_route_propagation_enabled = false
+  tags                          = local.common_tags
+
+  route {
+    name                   = "default-to-firewall"
+    address_prefix         = "0.0.0.0/0"
+    next_hop_type          = "VirtualAppliance"
+    next_hop_in_ip_address = azurerm_firewall.hub.ip_configuration[0].private_ip_address
+  }
+}
+
+# AI Spoke Route Table
+resource "azurerm_route_table" "ai" {
+  name                          = "rt-spoke-ai-${local.environment}"
+  location                      = var.location
+  resource_group_name           = azurerm_resource_group.spoke_ai.name
+  bgp_route_propagation_enabled = false
+  tags                          = local.common_tags
+
+  route {
+    name                   = "default-to-firewall"
+    address_prefix         = "0.0.0.0/0"
+    next_hop_type          = "VirtualAppliance"
+    next_hop_in_ip_address = azurerm_firewall.hub.ip_configuration[0].private_ip_address
+  }
+}
+
+# Associate AVD Route Table to AVD Subnet
+resource "azurerm_subnet_route_table_association" "avd" {
+  subnet_id      = azurerm_subnet.avd_hosts.id
+  route_table_id = azurerm_route_table.avd.id
+}
+
+# Associate AI Route Table to AI Subnet
+resource "azurerm_subnet_route_table_association" "ai" {
+  subnet_id      = azurerm_subnet.ai_services.id
+  route_table_id = azurerm_route_table.ai.id
+}

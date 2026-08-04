@@ -50,3 +50,37 @@ resource "azurerm_virtual_network" "spoke_ai" {
   address_space       = [var.ai_vnet_cidr]
   tags                = local.common_tags
 }
+
+# ═══════════════════════════════════════════
+# SUBNETS
+# Carved from VNet address spaces
+# AzureFirewallSubnet = mandatory name
+# ═══════════════════════════════════════════
+
+resource "azurerm_subnet" "firewall" {
+  name                 = "AzureFirewallSubnet"
+  resource_group_name  = azurerm_resource_group.hub.name
+  virtual_network_name = azurerm_virtual_network.hub.name
+  address_prefixes     = [var.firewall_subnet_cidr]
+}
+
+resource "azurerm_subnet" "hub_shared" {
+  name                 = "snet-hub-shared"
+  resource_group_name  = azurerm_resource_group.hub.name
+  virtual_network_name = azurerm_virtual_network.hub.name
+  address_prefixes     = [var.hub_shared_subnet_cidr]
+}
+
+resource "azurerm_subnet" "avd_hosts" {
+  name                 = "snet-avd-hosts"
+  resource_group_name  = azurerm_resource_group.spoke_avd.name
+  virtual_network_name = azurerm_virtual_network.spoke_avd.name
+  address_prefixes     = [var.avd_hosts_subnet_cidr]
+}
+
+resource "azurerm_subnet" "ai_services" {
+  name                 = "snet-ai-services"
+  resource_group_name  = azurerm_resource_group.spoke_ai.name
+  virtual_network_name = azurerm_virtual_network.spoke_ai.name
+  address_prefixes     = [var.ai_services_subnet_cidr]
+}

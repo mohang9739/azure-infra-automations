@@ -234,3 +234,59 @@ resource "azurerm_subnet_route_table_association" "ai" {
   subnet_id      = azurerm_subnet.ai_services.id
   route_table_id = azurerm_route_table.ai.id
 }
+
+# ═══════════════════════════════════════════
+# NETWORK SECURITY GROUPS
+# Defence in depth - second security layer
+# Firewall = perimeter, NSG = subnet level
+# ═══════════════════════════════════════════
+
+# AVD Hosts NSG
+resource "azurerm_network_security_group" "avd_hosts" {
+  name                = "nsg-avd-hosts-${local.environment}"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.spoke_avd.name
+  tags                = local.common_tags
+
+  security_rule {
+    name                       = "Allow-AVD-Inbound"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = "WindowsVirtualDesktop"
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "Allow-RDP-From-Hub"
+    priority                   = 200
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "3389"
+    source_address_prefix      = var.hub_vnet_cidr
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "Deny-All-Inbound"
+    priority                   = 4096
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+}
+
+# Associate NSG to AVD Subnet
+resource "azurerm_subnet_network_security_group_association" "avd_hosts" {
+  subnet_id                 = azurerm_subnet.avd_hosts.id
+  network_security_group_id = azurerm_network_security_group.avd_hosts.id
+}

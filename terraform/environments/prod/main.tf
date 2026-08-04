@@ -141,3 +141,46 @@ resource "azurerm_virtual_network_peering" "ai_to_hub" {
 # VNET PEERINGS
 # Hub-Spoke requires BOTH directions
 # Non-transitive by Azure design
+
+# ═══════════════════════════════════════════
+# AZURE FIREWALL PREMIUM
+# Central inspection point for Hub-Spoke
+# Most expensive resource - destroy after test
+# ═══════════════════════════════════════════
+
+# Step 1: Public IP for Firewall
+resource "azurerm_public_ip" "firewall" {
+  name                = "pip-${local.firewall_name}"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.hub.name
+  allocation_method   = "Static"
+  sku                 = "Standard"
+  tags                = local.common_tags
+}
+
+# Step 2: Firewall Policy
+resource "azurerm_firewall_policy" "hub" {
+  name                     = "afwp-hub-${local.environment}"
+  location                 = var.location
+  resource_group_name      = azurerm_resource_group.hub.name
+  sku                      = "Premium"
+  threat_intelligence_mode = "Alert"
+  tags                     = local.common_tags
+}
+
+# Step 3: Azure Firewall Premium
+resource "azurerm_firewall" "hub" {
+  name                = local.firewall_name
+  location            = var.location
+  resource_group_name = azurerm_resource_group.hub.name
+  sku_name            = "AZFW_VNet"
+  sku_tier            = "Premium"
+  firewall_policy_id  = azurerm_firewall_policy.hub.id
+  tags                = local.common_tags
+
+  ip_configuration {
+    name                 = "fw-ipconfig"
+    subnet_id            = azurerm_subnet.firewall.id
+    public_ip_address_id = azurerm_public_ip.firewall.id
+  }
+}

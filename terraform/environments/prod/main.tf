@@ -375,3 +375,21 @@ resource "azurerm_private_endpoint" "keyvault" {
     private_dns_zone_ids = [azurerm_private_dns_zone.keyvault.id]
   }
 }
+
+# ═══════════════════════════════════════════
+# AVD MODULE CALL
+# Calls the AVD module we built
+# ═══════════════════════════════════════════
+
+module "avd" {
+  source = "../../modules/avd"
+
+  location            = var.location
+  resource_group_name = azurerm_resource_group.spoke_avd.name
+  host_pool_name      = "hp-avd-${local.environment}"
+  workspace_name      = "ws-avd-${local.environment}"
+  scaling_plan_name   = "sp-avd-${local.environment}"
+  managed_identity_id = azurerm_user_assigned_identity.avd.id
+  subnet_id           = azurerm_subnet.avd_hosts.id
+  tags                = local.common_tags
+}

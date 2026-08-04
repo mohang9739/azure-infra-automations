@@ -290,3 +290,88 @@ resource "azurerm_subnet_network_security_group_association" "avd_hosts" {
   subnet_id                 = azurerm_subnet.avd_hosts.id
   network_security_group_id = azurerm_network_security_group.avd_hosts.id
 }
+
+# ═══════════════════════════════════════════
+# MANAGED IDENTITY
+# Zero credential authentication
+# User Assigned = survives VM recreation
+# ═══════════════════════════════════════════
+
+resource "azurerm_user_assigned_identity" "avd" {
+  name                = "mi-avd-${local.environment}"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.hub.name
+  tags                = local.common_tags
+}
+
+# ═══════════════════════════════════════════
+# KEY VAULT
+# Zero public access - Private Endpoint only
+# Managed Identity gets read access
+# ═══════════════════════════════════════════
+
+data "azurerm_client_config" "current" {}
+
+resource "azurerm_key_vault" "hub" {
+  name                          = local.keyvault_name
+  location                      = var.location
+  resource_group_name           = azurerm_resource_group.hub.name
+  tenant_id                     = data.azurerm_client_config.current.tenant_id
+  sku_name                      = "standard"
+  soft_delete_retention_days    = 7
+  purge_protection_enabled      = false
+  public_network_access_enabled = false
+  enable_rbac_authorization     = true
+  tags                          = local.common_tags
+}
+
+# Grant Managed Identity access to Key Vault secrets
+resource "azurerm_role_assignment" "avd_kv_secrets" {
+  scope                = azurerm_key_vault.hub.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = azurerm_user_assigned_identity.avd.principal_id
+}
+
+# ═══════════════════════════════════════════
+# PRIVATE DNS ZONE + PRIVATE ENDPOINT
+# Zero public access for Key Vault
+# nslookup → 10.0.x.x proves Zero Trust
+# ═══════════════════════════════════════════
+
+# Private DNS Zone for Key Vault
+resource "azurerm_private_dns_zone" "keyvault" {
+  name                = "privatelink.vaultcore.azure.net"
+  resource_group_name = azurerm_resource_group.hub.name
+  tags                = local.common_tags
+}
+
+# Link DNS Zone to Hub VNet
+resource "azurerm_private_dns_zone_virtual_network_link" "keyvault" {
+  name                  = "dns-link-hub-keyvault"
+  resource_group_name   = azurerm_resource_group.hub.name
+  private_dns_zone_name = azurerm_private_dns_zone.keyvault.name
+  virtual_network_id    = azurerm_virtual_network.hub.id
+  registration_enabled  = false
+  tags                  = local.common_tags
+}
+
+# Private Endpoint for Key Vault
+resource "azurerm_private_endpoint" "keyvault" {
+  name                = "pe-keyvault-${local.environment}"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.hub.name
+  subnet_id           = azurerm_subnet.hub_shared.id
+  tags                = local.common_tags
+
+  private_service_connection {
+    name                           = "psc-keyvault"
+    private_connection_resource_id = azurerm_key_vault.hub.id
+    subresource_names              = ["vault"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "dns-zone-group-keyvault"
+    private_dns_zone_ids = [azurerm_private_dns_zone.keyvault.id]
+  }
+}

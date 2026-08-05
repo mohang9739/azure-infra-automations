@@ -322,6 +322,12 @@ resource "azurerm_key_vault" "hub" {
   purge_protection_enabled      = false
   public_network_access_enabled = false
   enable_rbac_authorization     = true
+  network_acls {
+    bypass                     = "AzureServices"
+    default_action             = "Deny"
+    ip_rules                   = []
+    virtual_network_subnet_ids = []
+  }
   tags                          = local.common_tags
 }
 

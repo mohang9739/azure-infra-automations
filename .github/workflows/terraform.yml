@@ -12,15 +12,10 @@ permissions:
   pull-requests: write
 
 env:
-  TF_VERSION: '1.5.0'
+  TF_VERSION: '1.9.0'
   WORKING_DIR: terraform/environments/prod
-  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-  ARM_USE_OIDC: true
 
 jobs:
-  # ── JOB 1: Security Scan ──────────────────
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
@@ -42,7 +37,6 @@ jobs:
           working_directory: ${{ env.WORKING_DIR }}
           soft_fail: true
 
-  # ── JOB 2: Terraform Plan ─────────────────
   terraform-plan:
     name: Terraform Plan
     runs-on: ubuntu-latest
@@ -81,6 +75,7 @@ jobs:
         working-directory: ${{ env.WORKING_DIR }}
         run: |
           terraform plan \
+            -var-file="terraform.tfvars" \
             -out=tfplan \
             -no-color 2>&1 | tee plan_output.txt
 
@@ -93,7 +88,6 @@ jobs:
             ${{ env.WORKING_DIR }}/plan_output.txt
           retention-days: 1
 
-  # ── JOB 3: Terraform Apply ────────────────
   terraform-apply:
     name: Terraform Apply
     runs-on: ubuntu-latest

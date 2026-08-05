@@ -12,7 +12,7 @@ permissions:
   pull-requests: write
 
 env:
-  TF_VERSION: '1.9.0'
+  TF_VERSION: '1.9.8'
   WORKING_DIR: terraform/environments/prod
 
 jobs:
@@ -55,6 +55,9 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Verify Terraform version
+        run: terraform version
 
       - name: OIDC Login to Azure
         uses: azure/login@v2
@@ -107,6 +110,9 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Verify Terraform version
+        run: terraform version
 
       - name: OIDC Login to Azure
         uses: azure/login@v2

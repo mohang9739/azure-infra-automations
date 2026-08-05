@@ -12,6 +12,7 @@ permissions:
   pull-requests: write
 
 env:
+  TF_VERSION: '1.9.8'
   WORKING_DIR: terraform/environments/prod
 
 jobs:
@@ -50,12 +51,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Get Terraform version
-        id: tf-version
-        run: |
-          TF_VER=$(terraform version -json | python3 -c "import sys,json; print(json.load(sys.stdin)['terraform_version'])")
-          echo "version=$TF_VER" >> $GITHUB_OUTPUT
-          echo "Runner Terraform version: $TF_VER"
+      - name: Setup Terraform ${{ env.TF_VERSION }}
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Verify version
+        run: terraform version
 
       - name: OIDC Login to Azure
         uses: azure/login@v2
@@ -104,7 +107,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Get Terraform version
+      - name: Setup Terraform ${{ env.TF_VERSION }}
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Verify version
         run: terraform version
 
       - name: OIDC Login to Azure
@@ -123,6 +132,10 @@ jobs:
         with:
           name: tfplan
           path: ${{ env.WORKING_DIR }}
+
+      - name: Verify tfplan exists
+        working-directory: ${{ env.WORKING_DIR }}
+        run: ls -la tfplan
 
       - name: Terraform Apply
         working-directory: ${{ env.WORKING_DIR }}
